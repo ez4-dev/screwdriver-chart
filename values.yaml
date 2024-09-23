@@ -2,7 +2,6 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-namespace: test-screwdriver
 env: prod
 # Set it to true if your apps are running with https protocol
 https: false
@@ -11,27 +10,23 @@ https: false
 rbac:
   enabled: true
 
-# To install nginx, please refer to https://kubernetes.github.io/ingress-nginx/deploy/
-nginx:
-  # If your k8s cluster does not use nginx as Load Balancer, set it to false
-  enabled: true
-
 ingress:
+  class: nginx
   # Use tls or not, if set to true, please refer to ingress.yaml and create tls secrets accordingly
   # Reference: https://kubernetes.io/docs/concepts/services-networking/ingress/#tls
   tls: false
   annotations:
     # Override these annotations based on your load balancer configurations
-    kubernetes.io/ingress.class: nginx
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    kubernetes.io/tls-acme: "true"
+    # kubernetes.io/ingress.class: nginx
+    # nginx.ingress.kubernetes.io/rewrite-target: /$2
+    # kubernetes.io/tls-acme: "true"
   # This property allows for reports up to a certain size to be uploaded to SonarQube
   # nginx.ingress.kubernetes.io/proxy-body-size: "8m"
   hosts:
-    api: test-api.screwdriver.cd
-    ui: test-cd.screwdriver.cd
-    store: test-store.screwdriver.cd
-    queue: test-queue.screwdriver.cd
+    api: screwdriver-api.localtest.me
+    ui: screwdriver.localtest.me
+    store: screwdriver-store.localtest.me
+    queue: screwdriver-queue.localtest.me
   # Enabled singleHost if your api, store, ui are sharing the same host with different path
   singleHost:
     enabled: false
@@ -54,6 +49,14 @@ api:
   image: screwdrivercd/screwdriver:stable
   replicas: 1
   ecosystem: {}
+  bookends:
+    default:
+      setup:
+        - scm
+        - screwdriver-cache-bookend
+      teardown:
+        - screwdriver-artifact-bookend
+        - screwdriver-cache-bookend
 
 ui:
   name: ui
@@ -68,9 +71,10 @@ store:
   # if s3 is not enabled, will use pod's memory to store logs, artifacts and that't non-persistent
   s3:
     enabled: false
-    bucketName: your.s3.bucket.name
-    region: us-east-2
-    useAccessKey: false
+    bucketName: screwdriver-store
+    region: us-east-1
+    # endpoint: ""
+    useAccessKey: true
 
 launcher:
   image: screwdrivercd/launcher
@@ -114,15 +118,38 @@ queue:
 # Queue for screwdriver
 # Please refer to https://github.com/helm/charts/tree/master/stable/redis for more configurations
 redis:
-  cluster:
-    enabled: true
+  enabled: true
+  # This value is for quick inital setup. For production, please consider using `replication`
+  architecture: standalone
   master:
     persistence:
       # To specify non-default storageClass, uncomment the line below and set it accordingly
       # storageClass: "enc-gp2"
       # Enabled it if you want you data to be persistent
       enabled: false
-      size: 10Gi
+      size: 1Gi
+  auth:
+    ## @param auth.enabled Enable password authentication
+    ##
+    enabled: true
+    ## @param auth.password Redis&reg; password
+    ## Defaults to a random 10-character alphanumeric string if not set
+    ##
+    password: "yourSuperSecretPassword"
+    ## @param auth.existingSecret The name of an existing secret with Redis&reg; credentials
+    ## NOTE: When it's set, the previous `auth.password` parameter is ignored
+    ##
+    existingSecret: ""
+    ## @param auth.existingSecretPasswordKey Password key to be retrieved from existing secret
+    ## NOTE: ignored unless `auth.existingSecret` parameter is set
+    ##
+    existingSecretPasswordKey: ""
+    ## @param auth.usePasswordFiles Mount credentials as files instead of using an environment variable
+    ##
+    usePasswordFiles: false
+    ## @param auth.usePasswordFileFromSecret Mount password file from secret
+    ##
+    usePasswordFileFromSecret: true
 
 # Database for screwdriver api, can be either running as a pod or external
 # Please refer to https://github.com/helm/charts/tree/master/stable/postgresql for more configurations
@@ -133,15 +160,32 @@ postgresql:
   # 2. set postgressql enabled to false to prevent creation of postgres as a pod
   # 3. uncomment the line below with your externl postgres server
   # postgresServer: ""
-  postgresqlUsername: "sdUser"
-  postgresqlPassword: "sdPassword"
-  postgresqlDatabase: "screwdriver"
+  auth:
+    ## @param auth.enablePostgresUser Assign a password to the "postgres" admin user. Otherwise, remote access will be blocked for this user
+    ##
+    enablePostgresUser: true
+    ## @param auth.postgresPassword Password for the "postgres" admin user. Ignored if `auth.existingSecret` is provided
+    ##
+    postgresPassword: "YourSuperSecretPassword"
+    ## @param auth.username Name for a custom user to create
+    ##
+    username: "screwdriver"
+    ## @param auth.password Password for the custom user to create. Ignored if `auth.existingSecret` is provided
+    ##
+    password: "YourSuperSecretPassword"
+    ## @param auth.database Name for a custom database to create
+    ##
+    database: "screwdriver"
+    ## @param auth.existingSecret Name of existing secret to use for PostgreSQL credentials. `auth.postgresPassword`, `auth.password`, and `auth.replicationPassword` will be ignored and picked up from this secret. The secret might also contains the key `ldap-password` if LDAP is enabled. `ldap.bind_password` will be ignored and picked from this secret in this case.
+    ##
+    existingSecret: ""
   # Specify the TCP port that PostgreSQL should use
-  service:
-    port: 5432
-  persistence:
-    # To specify non-default storageClass, uncomment the line below and set it accordingly
-    # storageClass: "enc-gp2"
-    # Enabled it if you want you data to be persistent
-    enabled: false
-    size: 20Gi
+  primary:
+    service:
+      ports:
+        postgresql: 5432
+    persistence:
+      # To specify non-default storageClass, uncomment the line below and set it accordingly
+      # storageClass: ""
+      # Enabled it if you want you data to be persistent
+      # enabled: false

@@ -10,11 +10,14 @@ sources:
   - https://github.com/bitnami/bitnami-docker-postgresql
   - https://github.com/bitnami/bitnami-docker-redis
 dependencies:
+  - name: common
+    version: "^2.0.0"
+    repository: oci://registry-1.docker.io/bitnamicharts
   - name: redis
-    version: "^10.6.17"
-    repository: https://charts.bitnami.com/bitnami
+    version: "^20.0.0"
+    repository: oci://registry-1.docker.io/bitnamicharts
     condition: redis.enabled
   - name: postgresql
-    version: "^8.10.4"
-    repository: https://charts.bitnami.com/bitnami
+    version: "^15.0.0"
+    repository: oci://registry-1.docker.io/bitnamicharts
     condition: postgresql.enabled

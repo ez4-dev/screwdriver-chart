@@ -8,7 +8,6 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: sd-buildbot
-    namespace: {{ .Values.namespace }}
 roleRef:
   kind: Role
   name: pod-reader
@@ -24,10 +23,8 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: sd-buildbot
-    namespace: {{ .Values.namespace }}
   - kind: ServiceAccount
     name: ingress
-    namespace: {{ .Values.namespace }}
 roleRef:
   kind: Role
   name: pod-writer

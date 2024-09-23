@@ -2,7 +2,6 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ template "api.fullname" . }}
-  namespace: {{ .Values.namespace }}
   labels:
     app: api
     env: {{ .Values.env }}
@@ -21,7 +20,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "api.fullname" . }}
-  namespace: {{ .Values.namespace }}
   labels:
     app: api
     env: {{ .Values.env }}
@@ -81,11 +79,11 @@ spec:
           - name: QUEUE_REDIS_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: {{ .Release.Name }}-redis
+                name: {{ include "common.names.fullname" . }}-redis
                 key: redis-password
           {{- end }}
           - name: K8S_JOBS_NAMESPACE
-            value: {{ .Values.namespace }}
+            value: {{ .Release.Namespace }}
           - name: K8S_TOKEN
             valueFrom:
               secretKeyRef:
@@ -149,12 +147,14 @@ spec:
           - name: DATASTORE_SEQUELIZE_PASSWORD
             valueFrom:
               secretKeyRef:
-                key: postgresql-password
+                key: password
                 name: {{- if .Values.postgresql.enabled }} {{ template "postgresql.fullname" .}} {{- else }} "screwdriver-api-secrets" {{- end }}
           - name: DATASTORE_SEQUELIZE_PORT
-            value: {{ .Values.postgresql.postgresqlPort | quote }}
+            value: {{ .Values.postgresql.primary.service.ports.postgresql | quote }}
           - name: DATASTORE_SEQUELIZE_USERNAME
-            value: {{ .Values.postgresql.postgresqlUsername | quote }}
+            value: {{ .Values.postgresql.auth.username | quote }}
+          - name: DATASTORE_SEQUELIZE_DATABASE
+            value: {{ .Values.postgresql.auth.database | quote }}
           - name: SECRET_PASSWORD
             valueFrom:
               secretKeyRef:
@@ -178,3 +178,5 @@ spec:
           {{- end }}
           - name: SECRET_WHITELIST
             value: '[]'
+          - name: BOOKENDS
+            value: {{ .Values.api.bookends | toJson | quote }}
